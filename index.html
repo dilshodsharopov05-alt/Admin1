@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="uz">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Anvar Bakery — Admin CRM</title>
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <style>
+    :root {
+      --primary: #15803d;
+      --bg: #f8fafc;
+      --border: #e2e8f0;
+      --text: #0f172a;
+      --muted: #64748b;
+      --warning: #d97706;
+      --danger: #dc2626;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+    body { background: var(--bg); color: var(--text); padding: 14px; padding-bottom: 30px; }
+    .header { background: linear-gradient(135deg, #166534, var(--primary)); color: white; padding: 14px 16px; border-radius: 14px; margin-bottom: 14px; box-shadow: 0 4px 12px rgba(21,128,61,0.2); }
+    .header h2 { font-size: 1.15rem; font-weight: 800; }
+    
+    .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 12px; }
+    .stat-box { background: white; border: 1px solid var(--border); border-radius: 12px; padding: 12px; text-align: center; box-shadow: 0 1px 3px rgba(0,0,0,0.02); }
+    .stat-val { font-size: 1.15rem; font-weight: 800; color: var(--primary); margin-top: 4px; }
+
+    .search-bar { background: white; border: 1px solid var(--border); border-radius: 10px; padding: 8px 12px; margin-bottom: 12px; display: flex; align-items: center; }
+    .search-bar input { border: none; outline: none; width: 100%; font-size: 0.85rem; }
+
+    .card { background: white; border: 1px solid var(--border); border-radius: 12px; padding: 12px; margin-bottom: 10px; }
+    .order-head { display: flex; justify-content: space-between; margin-bottom: 6px; font-weight: 700; }
+    .btn { padding: 9px; border-radius: 8px; border: none; font-size: 0.8rem; font-weight: 700; cursor: pointer; width: 100%; margin-top: 6px; }
+    .btn-action { background: var(--warning); color: white; }
+    .btn-cancel { background: #fee2e2; color: var(--danger); }
+    .btn-excel { background: white; border: 1px solid var(--border); color: var(--text); font-weight: 700; padding: 10px; border-radius: 10px; width: 100%; cursor: pointer; margin-bottom: 12px; }
+  </style>
+</head>
+<body>
+
+  <div class="header">
+    <h2>👑 Dilshodbek — Admin CRM</h2>
+    <p style="font-size:0.8rem; opacity:0.9;">Anvar Bakery Boshqaruv Markazi</p>
+  </div>
+
+  <div class="grid">
+    <div class="stat-box"><span style="font-size:0.7rem; color:var(--muted); font-weight:700;">BUGUNGI TUSHUM</span><div class="stat-val" id="stat-daily">290,000 so'm</div></div>
+    <div class="stat-box"><span style="font-size:0.7rem; color:var(--muted); font-weight:700;">OYLIK TUSHUM</span><div class="stat-val" id="stat-monthly">7,540,000 so'm</div></div>
+  </div>
+
+  <button class="btn-excel" onclick="exportToCSV()">📥 Excel hisobot yuklash (.csv)</button>
+
+  <div class="search-bar">
+    <input type="number" id="adm-search" placeholder="🔍 Buyurtma raqamidan qidirish (#1, #2...)" oninput="searchOrders()">
+  </div>
+
+  <h3 style="font-size:0.9rem; margin-bottom:8px; color:var(--muted);">KIRUVCHI BUYURTMALAR:</h3>
+  <div id="admin-orders-list"></div>
+
+  <script>
+    const tg = window.Telegram?.WebApp;
+    if (tg) {
+      tg.expand();
+      tg.ready();
+    }
+
+    let adminOrders = [
+      { id: 1, client: "Sherzod", phone: "+998 90 123 45 67", items: "Hot-dog (katta) — 4 paket", total: 100000, time: "Tezkor (2 soat)", status: "To'lov kutilmoqda", shift: "Kunduzgi" },
+      { id: 2, client: "Oshxona 24", phone: "+998 97 765 43 21", items: "Gamburger (katta) — 3 paket", total: 75000, time: "Tungi vaqt", status: "Yuborildi", shift: "Tungi" },
+      { id: 3, client: "Bunyodkor Kafe", phone: "+998 93 111 22 33", items: "Baton bochka — 4 paket", total: 112000, time: "Ertalab", status: "Yig'ilmoqda", shift: "Kunduzgi" }
+    ];
+
+    function renderOrders(customList = null) {
+      const cont = document.getElementById("admin-orders-list");
+      cont.innerHTML = "";
+      const list = customList || adminOrders;
+
+      if (list.length === 0) {
+        cont.innerHTML = "<p style='color:var(--muted); text-align:center; padding:20px;'>Buyurtma topilmadi.</p>";
+        return;
+      }
+
+      list.forEach(o => {
+        cont.innerHTML += `
+          <div class="card">
+            <div class="order-head">
+              <span>#${o.id} — ${o.client}</span>
+              <span style="font-size:0.75rem; padding:2px 8px; border-radius:4px; background:#fef3c7; color:#92400e;">${o.status}</span>
+            </div>
+            <div style="font-size:0.78rem; color:var(--muted); margin:4px 0;">
+              📱 ${o.phone} | ⏰ ${o.time}<br>
+              🛵 Smena: <b>${o.shift}</b>
+            </div>
+            <div style="font-size:0.82rem; margin:6px 0;">${o.items}</div>
+            <b style="color:#b45309; display:block; margin-bottom:8px;">Jami: ${o.total.toLocaleString()} so'm</b>
+            
+            <div style="display:flex; gap:6px;">
+              ${o.status === "To'lov kutilmoqda" ? `
+                <button class="btn btn-action" style="background:#16a34a" onclick="changeStatus(${o.id}, 'Yuborildi')">✅ To'lov tushdi</button>
+              ` : `
+                <button class="btn btn-action" onclick="changeStatus(${o.id}, 'Yo\\'lda')">🚚 Yo'lga chiqarish</button>
+              `}
+              <button class="btn btn-cancel" onclick="cancelOrder(${o.id})">❌ Bekor</button>
+            </div>
+          </div>
+        `;
+      });
+    }
+
+    function changeStatus(id, newSt) {
+      const o = adminOrders.find(x => x.id === id);
+      if (o) {
+        o.status = newSt;
+        renderOrders();
+        alert(`Buyurtma #${id} holati yangilandi!`);
+      }
+    }
+
+    function cancelOrder(id) {
+      if (confirm(`Buyurtma #${id} bekor qilinsinmi? (Kuryer va mijozga ogohlantirish yuboriladi)`)) {
+        adminOrders = adminOrders.filter(x => x.id !== id);
+        renderOrders();
+        if (tg && tg.sendData) {
+          tg.sendData(JSON.stringify({ action: "admin_cancel", order_id: id }));
+        }
+        alert(`⚠️ #${id} bekor qilindi!`);
+      }
+    }
+
+    function searchOrders() {
+      const val = document.getElementById("adm-search").value.trim();
+      if (!val) { renderOrders(); return; }
+      const filtered = adminOrders.filter(o => o.id.toString() === val);
+      renderOrders(filtered);
+    }
+
+    function exportToCSV() {
+      let csv = "ID,Mijoz,Telefon,Vaqti,Smena,Summa,Holati\n";
+      adminOrders.forEach(o => {
+        csv += `${o.id},"${o.client}","${o.phone}","${o.time}","${o.shift}",${o.total},"${o.status}"\n`;
+      });
+      const a = document.createElement("a");
+      a.href = "data:text/csv;charset=utf-8,\uFEFF" + encodeURI(csv);
+      a.download = "Anvar_Bakery_Hisobot.csv";
+      a.click();
+    }
+
+    renderOrders();
+  </script>
+</body>
+</html>
